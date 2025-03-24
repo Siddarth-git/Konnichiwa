@@ -54,7 +54,8 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
         
-      - name: Build and push Docker image
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
@@ -62,26 +63,44 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}" >> $GITHUB_OUTPUT
 
-      - name: Update task definition
+      - name: Update ECS task definition
         id: task-def
         run: |
-          # Get the current task definition
-          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition $ECS_TASK_DEFINITION)
-          
-          # Update the container image
-          NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "${{ steps.build-image.outputs.image }}" '.taskDefinition | .containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
-          
-          # Register the new task definition
-          TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEFINITION" | jq -r '.taskDefinition.taskDefinitionArn')
-          echo "task-definition-arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+          TASK_DEFINITION_ARN=$(aws ecs register-task-definition \
+            --family test-api \
+            --network-mode awsvpc \
+            --requires-compatibilities FARGATE \
+            --cpu 1024 \
+            --memory 2048 \
+            --execution-role-arn arn:aws:iam::542267705028:role/test-ecs-execution-role \
+            --task-role-arn arn:aws:iam::542267705028:role/test-ecs-task-role \
+            --container-definitions '[{
+              "name": "test-api",
+              "image": "${{ steps.build-image.outputs.image }}",
+              "portMappings": [{"containerPort": 4000, "protocol": "tcp"}],
+              "essential": true,
+              "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                  "awslogs-group": "/ecs/test-api",
+                  "awslogs-region": "us-east-1",
+                  "awslogs-stream-prefix": "ecs"
+                }
+              },
+              "secrets": [
+                {
+                  "name": "API_KEY",
+                  "valueFrom": "arn:aws:secretsmanager:us-east-1:542267705028:secret:test-api-key-*:API_KEY::"
+                }
+              ]
+            }]' | jq -r .taskDefinition.taskDefinitionArn)
+          echo "task-definition=$TASK_DEFINITION_ARN" >> $GITHUB_OUTPUT
           
       - name: Update ECS service
         run: |
           aws ecs update-service \
             --cluster $ECS_CLUSTER \
             --service $ECS_SERVICE \
-            --force-new-deployment \
-            --task-definition ${{ steps.task-def.outputs.task-definition-arn }} \
+            --task-definition ${{ steps.task-def.outputs.task-definition }} \
             --desired-count 2 \
-            --deployment-configuration "maximumPercent=200,minimumHealthyPercent=100" \
-            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.PRIVATE_SUBNET_IDS }}],securityGroups=[${{ secrets.SECURITY_GROUP_ID }}],assignPublicIp=DISABLED}" 
+            --force-new-deployment 
