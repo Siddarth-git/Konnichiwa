@@ -28,8 +28,6 @@ env/
 **/.terraform/
 **/*.tfstate
 **/*.tfstate.*
-**/*.tfvars
-**/*.tfvars.json
 **/.terraformrc
 **/terraform.rc
 **/override.tf
