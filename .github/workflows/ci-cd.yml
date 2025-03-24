@@ -65,6 +65,12 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}" >> $GITHUB_OUTPUT
 
+      - name: Get Secret ARN
+        id: get-secret
+        run: |
+          SECRET_ARN=$(aws secretsmanager describe-secret --secret-id test-api-key --query 'ARN' --output text)
+          echo "secret-arn=$SECRET_ARN" >> $GITHUB_OUTPUT
+
       - name: Update ECS task definition
         id: task-def
         run: |
@@ -92,7 +98,7 @@ jobs:
               "secrets": [
                 {
                   "name": "API_KEY",
-                  "valueFrom": "arn:aws:secretsmanager:us-east-1:542267705028:secret:test-api-key-*:API_KEY::"
+                  "valueFrom": "${{ steps.get-secret.outputs.secret-arn }}:API_KEY::"
                 }
               ]
             }]' | jq -r .taskDefinition.taskDefinitionArn)
