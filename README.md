@@ -42,7 +42,27 @@ docker run -p 4000:4000 -e API_KEY=your-secure-api-key konnichiwa-api
 
 ## Cloud Deployment (AWS)
 
-The application is deployed on AWS ECS in the ap-northeast-1 (Tokyo) region to meet latency requirements.
+The application is deployed on AWS ECS in the us-east-1 (N. Virginia) region.
+
+### Live Endpoints
+
+The API is currently deployed and accessible at:
+```
+http://test-alb-502768483.us-east-1.elb.amazonaws.com
+```
+
+Test the endpoints:
+```bash
+# Test root endpoint
+curl http://test-alb-502768483.us-east-1.elb.amazonaws.com/
+
+# Test health endpoint
+curl http://test-alb-502768483.us-east-1.elb.amazonaws.com/health
+
+# Test inspect endpoint (requires API key)
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  http://test-alb-502768483.us-east-1.elb.amazonaws.com/inspect
+```
 
 ### Infrastructure Components
 
@@ -68,7 +88,6 @@ The pipeline is implemented using GitHub Actions and includes:
    - Poetry installation
    - Dependency installation
    - Unit tests execution
-   - Code formatting
 
 2. **Deploy Stage** (on main branch):
    - AWS credentials configuration
@@ -88,8 +107,8 @@ The API key is managed securely using AWS Secrets Manager:
 2. Store in AWS Secrets Manager:
    ```bash
    aws secretsmanager create-secret \
-     --name konnichiwa-api-key \
-     --secret-string '{"API_KEY":"your-generated-key"}'
+     --name test-api-key \
+     --secret-string '{"API_KEY":"YOUR_GENERATED_KEY"}'
    ```
 
 3. The API key is injected into the ECS tasks as an environment variable.
@@ -99,21 +118,25 @@ The API key is managed securely using AWS Secrets Manager:
 The `monitor.py` script checks system health by:
 
 1. Making an authenticated request to the /inspect endpoint
-2. Checking CPU and memory usage
-3. Printing warning messages if usage exceeds 70%
+2. Checking CPU and memory usage against thresholds (70%)
+3. Printing warning messages if usage exceeds thresholds
 4. Exiting with appropriate status codes
 
 Usage:
 ```bash
-# First, make sure the API is running (either locally or in Docker)
-# Then run the monitoring script using poetry:
+# Ensure you have the correct .env file configuration:
+API_KEY=your-secure-api-key
+API_URL=http://test-alb-502768483.us-east-1.elb.amazonaws.com
+
+# Run the monitoring script:
 poetry run python monitor.py
 ```
 
-The script requires a `.env` file with the following variables:
+Example output:
 ```
-API_KEY=your-secure-api-key
-API_URL=http://localhost:4000  # or your deployed API URL
+System is healthy!
+CPU Usage: 2%
+Memory Usage: 13%
 ```
 
 ## Security Considerations
@@ -125,25 +148,32 @@ API_URL=http://localhost:4000  # or your deployed API URL
 
 2. **API Security**:
    - API key authentication
-   - HTTPS encryption
    - Rate limiting
+   - Secure secret management
 
 3. **Infrastructure Security**:
    - VPC isolation
    - Security groups
    - IAM roles with least privilege
 
-## Performance Optimization
+## Infrastructure as Code
 
-1. **Container**:
-   - Multi-stage builds
-   - Layer caching
-   - Uvicorn with multiple workers
+The infrastructure is managed using Terraform:
 
-2. **Infrastructure**:
-   - Tokyo region deployment
-   - Load balancer configuration
-   - Auto-scaling policies
+1. **VPC Configuration**:
+   - 2 Availability Zones in us-east-1
+   - Public and private subnets
+   - NAT Gateway for private subnet access
+
+2. **ECS Configuration**:
+   - Fargate launch type
+   - Task definitions with resource limits
+   - Service auto-scaling
+
+3. **Security**:
+   - IAM roles and policies
+   - Security group rules
+   - Secrets management
 
 ## Running Tests
 
@@ -151,21 +181,16 @@ API_URL=http://localhost:4000  # or your deployed API URL
 poetry run pytest
 ```
 
-## Formatting Code
-
-```bash
-poetry run black .
-```
-
 ## Testing the API
 
 ```bash
 # Test root endpoint
-curl -v http://localhost:4000
+curl http://test-alb-502768483.us-east-1.elb.amazonaws.com/
 
 # Test health endpoint
-curl -v http://localhost:4000/health
+curl http://test-alb-502768483.us-east-1.elb.amazonaws.com/health
 
 # Test inspect endpoint (requires API key)
-curl -H "Authorization: Bearer <THE_API_KEY>" http://localhost:4000/inspect
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  http://test-alb-502768483.us-east-1.elb.amazonaws.com/inspect
 ```
