@@ -158,22 +158,77 @@ Memory Usage: 13%
 
 ## Infrastructure as Code
 
-The infrastructure is managed using Terraform:
+The infrastructure is managed using Terraform and deployed on AWS. The configuration is located in the `terraform/` directory.
+
+### Deployment Steps
+
+1. **Prerequisites**:
+   ```bash
+   # Install AWS CLI and configure credentials
+   aws configure
+
+   # Install Terraform (version 1.0.0 or later)
+   brew install terraform  # macOS
+   ```
+
+2. **Initialize and Deploy**:
+   ```bash
+   cd terraform
+   terraform init
+   terraform plan
+   terraform apply
+   ```
+
+3. **Verify Deployment**:
+   ```bash
+   # Get the ALB DNS name
+   terraform output alb_dns_name
+
+   # Test the endpoints
+   curl $(terraform output -raw alb_dns_name)/
+   ```
+
+### Infrastructure Components
 
 1. **VPC Configuration**:
    - 2 Availability Zones in us-east-1
    - Public and private subnets
    - NAT Gateway for private subnet access
+   - Internet Gateway for public access
 
 2. **ECS Configuration**:
    - Fargate launch type
    - Task definitions with resource limits
    - Service auto-scaling
+   - Container Insights enabled
 
 3. **Security**:
    - IAM roles and policies
    - Security group rules
    - Secrets management
+   - VPC isolation
+
+4. **Monitoring**:
+   - CloudWatch Logs
+   - Container Insights
+   - ALB health checks
+   - Security group monitoring
+
+### Cost Optimization
+
+1. **Resource Management**:
+   - Single NAT Gateway for development
+   - Configurable ECS task count
+   - Adjustable log retention
+   - Fargate for serverless scaling
+
+2. **Maintenance**:
+   - Regular container image updates
+   - CloudWatch metrics monitoring
+   - Security group rule reviews
+   - Secrets backup
+
+For detailed infrastructure configuration, see the [Terraform README](terraform/README.md).
 
 ## Running Tests
 
