@@ -68,7 +68,14 @@ jobs:
       - name: Get Secret ARN
         id: get-secret
         run: |
-          SECRET_ARN=$(aws secretsmanager describe-secret --secret-id test-api-key --query 'ARN' --output text)
+          # Check if secret exists and handle deletion period
+          if aws secretsmanager describe-secret --secret-id konnichiwa-api-key 2>/dev/null; then
+            # If secret exists, cancel any pending deletion
+            aws secretsmanager cancel-rotate --secret-id konnichiwa-api-key || true
+          fi
+          
+          # Get the secret ARN
+          SECRET_ARN=$(aws secretsmanager describe-secret --secret-id konnichiwa-api-key --query 'ARN' --output text)
           echo "secret-arn=$SECRET_ARN" >> $GITHUB_OUTPUT
 
       - name: Update ECS task definition

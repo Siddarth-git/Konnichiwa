@@ -106,8 +106,18 @@ The API key is managed securely using AWS Secrets Manager:
 
 2. Store in AWS Secrets Manager:
    ```bash
+   # First, check if secret exists and is in deletion period
+   aws secretsmanager describe-secret --secret-id konnichiwa-api-key || true
+   
+   # If secret exists and is in deletion period, cancel deletion
+   aws secretsmanager cancel-rotate --secret-id konnichiwa-api-key || true
+   
+   # Create or update the secret
    aws secretsmanager create-secret \
-     --name test-api-key \
+     --name konnichiwa-api-key \
+     --secret-string '{"API_KEY":"YOUR_GENERATED_KEY"}' \
+     || aws secretsmanager update-secret \
+     --secret-id konnichiwa-api-key \
      --secret-string '{"API_KEY":"YOUR_GENERATED_KEY"}'
    ```
 

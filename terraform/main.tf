@@ -288,7 +288,31 @@ resource "aws_iam_role" "ecs_task_role" {
 
 # Secrets Manager
 resource "aws_secretsmanager_secret" "api_key" {
-  name = "test-api-key"
+  name = "konnichiwa-api-key"
+  
+  # Add recovery window to allow for secret restoration if needed
+  recovery_window_in_days = 30
+  
+  # Add tags for better resource management
+  tags = {
+    Environment = "production"
+    Project     = "test"
+  }
+}
+
+# Add a null_resource to handle secret deletion period
+resource "null_resource" "handle_secret_deletion" {
+  triggers = {
+    secret_name = aws_secretsmanager_secret.api_key.name
+  }
+  
+  provisioner "local-exec" {
+    command = <<-EOT
+      if aws secretsmanager describe-secret --secret-id ${aws_secretsmanager_secret.api_key.name} 2>/dev/null; then
+        aws secretsmanager cancel-rotate --secret-id ${aws_secretsmanager_secret.api_key.name} || true
+      fi
+    EOT
+  }
 }
 
 # CloudWatch Log Group
