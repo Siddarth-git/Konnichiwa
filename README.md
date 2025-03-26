@@ -31,11 +31,13 @@ Konnichiwa is a Python-based API service designed to provide basic system inform
 ## Docker Deployment
 
 Build the image:
+
 ```bash
 docker build -t konnichiwa-api .
 ```
 
 Run the container:
+
 ```bash
 docker run -p 4000:4000 -e API_KEY=your-secure-api-key konnichiwa-api
 ```
@@ -47,21 +49,23 @@ The application is deployed on AWS ECS in the us-east-1 (N. Virginia) region.
 ### Live Endpoints
 
 The API is currently deployed and accessible at:
+
 ```
-http://test-alb-502768483.us-east-1.elb.amazonaws.com
+http://test-alb-1045178856.us-east-1.elb.amazonaws.com
 ```
 
 Test the endpoints:
+
 ```bash
 # Test root endpoint
-curl http://test-alb-502768483.us-east-1.elb.amazonaws.com/
+curl http://test-alb-1045178856.us-east-1.elb.amazonaws.com/
 
 # Test health endpoint
-curl http://test-alb-502768483.us-east-1.elb.amazonaws.com/health
+curl http://test-alb-1045178856.us-east-1.elb.amazonaws.com/health
 
 # Test inspect endpoint (requires API key)
 curl -H "Authorization: Bearer YOUR_API_KEY" \
-  http://test-alb-502768483.us-east-1.elb.amazonaws.com/inspect
+  http://test-alb-1045178856.us-east-1.elb.amazonaws.com/inspect
 ```
 
 ### Infrastructure Components
@@ -84,12 +88,13 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
 The pipeline is implemented using GitHub Actions and includes:
 
 1. **Test Stage**:
+
    - Python setup
    - Poetry installation
    - Dependency installation
    - Unit tests execution
-
 2. **Deploy Stage** (on main branch):
+
    - AWS credentials configuration
    - ECR login
    - Docker image build and push
@@ -100,18 +105,19 @@ The pipeline is implemented using GitHub Actions and includes:
 The API key is managed securely using AWS Secrets Manager:
 
 1. Generate a secure API key:
+
    ```bash
    openssl rand -base64 32
    ```
-
 2. Store in AWS Secrets Manager:
+
    ```bash
    # First, check if secret exists and is in deletion period
    aws secretsmanager describe-secret --secret-id konnichiwa-api-key || true
-   
+
    # If secret exists and is in deletion period, cancel deletion
    aws secretsmanager cancel-rotate --secret-id konnichiwa-api-key || true
-   
+
    # Create or update the secret
    aws secretsmanager create-secret \
      --name konnichiwa-api-key \
@@ -120,7 +126,6 @@ The API key is managed securely using AWS Secrets Manager:
      --secret-id konnichiwa-api-key \
      --secret-string '{"API_KEY":"YOUR_GENERATED_KEY"}'
    ```
-
 3. The API key is injected into the ECS tasks as an environment variable.
 
 ## Monitoring
@@ -133,16 +138,18 @@ The `monitor.py` script checks system health by:
 4. Exiting with appropriate status codes
 
 Usage:
+
 ```bash
 # Ensure you have the correct .env file configuration:
 API_KEY=your-secure-api-key
-API_URL=http://test-alb-502768483.us-east-1.elb.amazonaws.com
+API_URL=http://test-alb-1045178856.us-east-1.elb.amazonaws.com
 
 # Run the monitoring script:
 poetry run python monitor.py
 ```
 
 Example output:
+
 ```
 System is healthy!
 CPU Usage: 2%
@@ -152,16 +159,17 @@ Memory Usage: 13%
 ## Security Considerations
 
 1. **Container Security**:
+
    - Non-root user in container
    - Minimal base image
    - Regular security updates
-
 2. **API Security**:
+
    - API key authentication
    - Rate limiting
    - Secure secret management
-
 3. **Infrastructure Security**:
+
    - VPC isolation
    - Security groups
    - IAM roles with least privilege
@@ -173,6 +181,7 @@ The infrastructure is managed using Terraform and deployed on AWS. The configura
 ### Deployment Steps
 
 1. **Prerequisites**:
+
    ```bash
    # Install AWS CLI and configure credentials
    aws configure
@@ -180,16 +189,16 @@ The infrastructure is managed using Terraform and deployed on AWS. The configura
    # Install Terraform (version 1.0.0 or later)
    brew install terraform  # macOS
    ```
-
 2. **Initialize and Deploy**:
+
    ```bash
    cd terraform
    terraform init
    terraform plan
    terraform apply
    ```
-
 3. **Verify Deployment**:
+
    ```bash
    # Get the ALB DNS name
    terraform output alb_dns_name
@@ -201,24 +210,25 @@ The infrastructure is managed using Terraform and deployed on AWS. The configura
 ### Infrastructure Components
 
 1. **VPC Configuration**:
+
    - 2 Availability Zones in us-east-1
    - Public and private subnets
    - NAT Gateway for private subnet access
    - Internet Gateway for public access
-
 2. **ECS Configuration**:
+
    - Fargate launch type
    - Task definitions with resource limits
    - Service auto-scaling
    - Container Insights enabled
-
 3. **Security**:
+
    - IAM roles and policies
    - Security group rules
    - Secrets management
    - VPC isolation
-
 4. **Monitoring**:
+
    - CloudWatch Logs
    - Container Insights
    - ALB health checks
@@ -227,12 +237,13 @@ The infrastructure is managed using Terraform and deployed on AWS. The configura
 ### Cost Optimization
 
 1. **Resource Management**:
+
    - Single NAT Gateway for development
    - Configurable ECS task count
    - Adjustable log retention
    - Fargate for serverless scaling
-
 2. **Maintenance**:
+
    - Regular container image updates
    - CloudWatch metrics monitoring
    - Security group rule reviews
@@ -250,12 +261,12 @@ poetry run pytest
 
 ```bash
 # Test root endpoint
-curl http://test-alb-502768483.us-east-1.elb.amazonaws.com/
+curl http://test-alb-1045178856.us-east-1.elb.amazonaws.com/
 
 # Test health endpoint
-curl http://test-alb-502768483.us-east-1.elb.amazonaws.com/health
+curl http://test-alb-1045178856.us-east-1.elb.amazonaws.com/health
 
 # Test inspect endpoint (requires API key)
 curl -H "Authorization: Bearer YOUR_API_KEY" \
-  http://test-alb-502768483.us-east-1.elb.amazonaws.com/inspect
+  http://test-alb-1045178856.us-east-1.elb.amazonaws.com/inspect
 ```
